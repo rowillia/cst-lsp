@@ -10,10 +10,11 @@ jobs:
     name: Build and publish to TestPyPI
     runs-on: ubuntu-latest
     environment:
-      name: pypi
+      name: test-pypi
       url: https://test.pypi.org/p/cst-lsp
     permissions:
       id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -33,3 +34,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          print-hash: true
