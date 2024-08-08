@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cst-lsp"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = [
     { name = "Roy Williams", email = "roy.williams.iii@gmail.com" },
@@ -22,10 +22,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.3.2",
-    "ruff>=0.1.0",
+    "pytest>=8.2.2",
+    "ruff>=0.4.0",
     "pyright>=1.1.0",
 ]
 
 [project.scripts]
-lspowerup = "cst_lsp.server:main"
+cst_lsp = "cst_lsp.server:main"
