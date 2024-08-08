@@ -28,6 +28,7 @@ class ParserState:
     new_function_def: cst.FunctionDef | None = None
     contains_return: bool = False
     contains_await: bool = False
+    contains_yield: bool = False
     is_classmethod: bool = False
     is_staticmethod: bool = False
     current_scope: list[cst.CSTNode] = field(default_factory=list)
@@ -172,6 +173,11 @@ class FunctionExtractor(cst.CSTTransformer):
         # codepaths still return.
         if self.is_node_in_range(node):
             self.state.contains_return = True
+        return True
+
+    def visit_Yield(self, node: cst.Yield) -> bool:
+        if self.is_node_in_range(node):
+            self.state.contains_yield = True
         return True
 
     def visit_Await(self, node: cst.Await) -> bool:
@@ -377,6 +383,12 @@ class FunctionExtractor(cst.CSTTransformer):
             for param in call_info.declaration_params
         ]
 
+        if self.state.contains_yield:
+            # We'll skip adding a return annotation for now
+            return_annotation = None
+        else:
+            return_annotation = call_info.return_type
+
         if not self.state.contains_return and call_info.return_vars:
             return_stmt = self.create_return_statement(call_info.return_vars)
             new_func_body.append(cst.SimpleStatementLine(body=[return_stmt]))
@@ -385,7 +397,7 @@ class FunctionExtractor(cst.CSTTransformer):
             name=cst.Name(self.config.new_func_name),
             params=cst.Parameters(params=new_params),
             body=cst.IndentedBlock(body=new_func_body),
-            returns=call_info.return_type,
+            returns=return_annotation,
             decorators=call_info.decorators,
             asynchronous=cst.Asynchronous() if self.state.contains_await else None,
         )
@@ -447,14 +459,15 @@ class FunctionExtractor(cst.CSTTransformer):
 
         This method constructs either a method call (if there's a receiver) or a
         regular function call. It also wraps the call in an Await node if the
-        extracted code contains await statements.
+        extracted code contains await statements, or in a Yield node with From if it
+        contains yield statements.
 
         Args:
             call_info (NewFunctionInformation): Information about the function call.
             call_args: The arguments for the function call.
 
         Returns:
-            cst.Call or cst.Await: The constructed function call node.
+            cst.Call, cst.Await, or cst.Yield: The constructed function call node.
         """
         if call_info.receiver_name:
             func_call = cst.Call(
@@ -469,6 +482,10 @@ class FunctionExtractor(cst.CSTTransformer):
 
         if self.state.contains_await:
             func_call = cst.Await(func_call)
+        elif self.state.contains_yield:
+            func_call = cst.Yield(
+                cst.From(func_call), lpar=[cst.LeftParen()], rpar=[cst.RightParen()]
+            )
         return func_call
 
     def create_return_assignment_targets(
@@ -509,10 +526,11 @@ class FunctionExtractor(cst.CSTTransformer):
         Creates the call statement that will replace the original code.
 
         This method generates a CSTNode representing the call to the newly extracted function.
-        It handles three cases:
-        1. If the extracted code contains a return statement, it wraps the function call in a return statement.
-        2. If the extracted code assigns values to variables used later, it creates an assignment statement.
-        3. Otherwise, it creates a simple expression statement with the function call.
+        It handles four cases:
+        1. If the extracted code contains a yield statement, it wraps the function call in a yield from statement.
+        2. If the extracted code contains a return statement, it wraps the function call in a return statement.
+        3. If the extracted code assigns values to variables used later, it creates an assignment statement.
+        4. Otherwise, it creates a simple expression statement with the function call.
 
         Args:
             call_info (NewFunctionInformation): Information about the new function call.
@@ -526,10 +544,12 @@ class FunctionExtractor(cst.CSTTransformer):
 
         if self.state.contains_return:
             return cst.SimpleStatementLine(body=[cst.Return(func_call)])
-        elif call_info.return_vars:
-            return self.create_return_assignment_targets(call_info, func_call)
         else:
-            return cst.SimpleStatementLine(body=[cst.Expr(func_call)])
+            func_call = func_call.with_changes(lpar=[], rpar=[])
+            if call_info.return_vars:
+                return self.create_return_assignment_targets(call_info, func_call)
+            else:
+                return cst.SimpleStatementLine(body=[cst.Expr(func_call)])
 
 
 class ExtractMethod(BaseCstLspCodeAction):

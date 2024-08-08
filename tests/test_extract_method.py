@@ -783,3 +783,110 @@ def test_extract_method_without_async_await():
 
     refactored_code = refactor_with_comments(source_code, "extracted_function")
     assert refactored_code.strip() == expected_output.strip()
+
+
+def test_extract_method_with_yield():
+    source_code = textwrap.dedent(
+        """
+        def original_function():
+            x = 5
+            y = 10
+            # start
+            yield x
+            yield y
+            # end
+            z = x + y
+            yield z
+
+        # Other code...
+    """
+    )
+
+    expected_output = textwrap.dedent(
+        """
+        def extracted_function(x, y):
+            yield x
+            yield y
+
+        def original_function():
+            x = 5
+            y = 10
+            yield from extracted_function(x, y)
+            z = x + y
+            yield z
+
+        # Other code...
+    """
+    )
+
+    refactored_code = refactor_with_comments(source_code, "extracted_function")
+    assert refactored_code.strip() == expected_output.strip()
+
+
+def test_extract_method_with_yield_and_return():
+    source_code = textwrap.dedent(
+        """
+        def original_function():
+            # start
+            yield 1
+            x = 3
+            yield 2
+            y = 4
+            # end
+            return x + y
+
+        # Other code...
+    """
+    )
+
+    expected_output = textwrap.dedent(
+        """
+        def extracted_function():
+            yield 1
+            x = 3
+            yield 2
+            y = 4
+            return x, y
+
+        def original_function():
+            x, y = yield from extracted_function()
+            return x + y
+
+        # Other code...
+    """
+    )
+
+    refactored_code = refactor_with_comments(source_code, "extracted_function")
+    assert refactored_code.strip() == expected_output.strip()
+
+
+def test_extract_method_with_yield_and_explicit_return():
+    source_code = textwrap.dedent(
+        """
+        def original_function():
+            # start
+            yield 1
+            yield 2
+            return 3
+            # end
+
+        # Other code...
+    """
+    )
+
+    expected_output = textwrap.dedent(
+        """
+        def extracted_function():
+            yield 1
+            yield 2
+            return 3
+
+        def original_function():
+            return (yield from extracted_function())
+
+        # Other code...
+    """
+    )
+
+    refactored_code = refactor_with_comments(source_code, "extracted_function")
+    assert refactored_code.strip() == expected_output.strip()
