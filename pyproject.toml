@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cst-lsp"
+version = "0.1.0"
+description = ""
+authors = [
+    { name = "Roy Williams", email = "roy.williams.iii@gmail.com" },
+]
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Topic :: Text Editors :: Integrated Development Environments (IDE)"
+]
+dependencies = [
+    "libcst>=1.4.0",
+    "pygls>=1.3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.2",
+    "ruff>=0.1.0",
+    "pyright>=1.1.0",
+]
+
+[project.scripts]
+lspowerup = "cst_lsp.server:main"
