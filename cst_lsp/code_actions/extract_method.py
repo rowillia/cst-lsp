@@ -9,15 +9,14 @@ from libcst.metadata import (
 )
 from lsprotocol import types as lsp_types
 
-from .base import BaseCstLspCodeAction
+from .base import BaseCstLspCodeAction, code_ranges_interect
 from .variable_collector import VariableCollector
 
 
 @dataclass(frozen=True)
 class ExtractMethodConfig:
     new_func_name: str
-    start_line: int
-    end_line: int
+    code_range: CodeRange
 
 
 @dataclass
@@ -76,13 +75,8 @@ class FunctionExtractor(cst.CSTTransformer):
         return position
 
     def is_node_in_range(self, node: cst.CSTNode) -> bool:
-        position = self.position_for_node(node)
-        return (
-            (self.config.start_line <= position.start.line <= self.config.end_line)
-            or (self.config.start_line <= position.end.line <= self.config.end_line)
-            or (position.start.line <= self.config.start_line <= position.end.line)
-            or (position.start.line <= self.config.end_line <= position.end.line)
-        )
+        node_range = self.position_for_node(node)
+        return code_ranges_interect(self.config.code_range, node_range)
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:
         # Keep track of the stack of classes to properly handle
@@ -157,8 +151,8 @@ class FunctionExtractor(cst.CSTTransformer):
     def visit_IndentedBlock(self, node: cst.IndentedBlock) -> bool:
         position = self.position_for_node(node)
         if (
-            position.start.line <= self.config.start_line
-            and position.end.line >= self.config.end_line
+            position.start.line <= self.config.code_range.start.line
+            and position.end.line >= self.config.code_range.end.line
         ):
             self.state.lowest_indented_block = node
         return True
@@ -244,16 +238,16 @@ class FunctionExtractor(cst.CSTTransformer):
 
         for var, positions in self.state.variable_collector.assignments.items():
             for pos in positions:
-                if pos.line < self.config.start_line:
+                if pos.line < self.config.code_range.start.line:
                     assignments_before[var].add(astuple(pos))
-                elif pos.line <= self.config.end_line:
+                elif pos.line <= self.config.code_range.end.line:
                     assignments_during[var].add(astuple(pos))
 
         for var, positions in self.state.variable_collector.usages.items():
             for pos in positions:
-                if pos.line > self.config.end_line:
+                if pos.line > self.config.code_range.end.line:
                     usage_after[var].add(astuple(pos))
-                elif pos.line >= self.config.start_line:
+                elif pos.line >= self.config.code_range.start.line:
                     usage_during[var].add(astuple(pos))
 
         return_vars = [x for x in assignments_during.keys() if x in usage_after]
@@ -436,9 +430,9 @@ class FunctionExtractor(cst.CSTTransformer):
         new_func_body = []
         for node in original_node.body:
             position = self.position_for_node(node)
-            if position.start.line < self.config.start_line:
+            if position.start.line < self.config.code_range.start.line:
                 preamble.append(node)
-            elif position.start.line > self.config.end_line:
+            elif position.start.line > self.config.code_range.end.line:
                 postamble.append(node)
             else:
                 new_func_body.append(node)
@@ -556,13 +550,9 @@ class ExtractMethod(BaseCstLspCodeAction):
     name = "Extract Method"
     kind = lsp_types.CodeActionKind.RefactorExtract
 
-    def refactor(
-        self, module: cst.Module, start: lsp_types.Position, end: lsp_types.Position
-    ) -> str | None:
+    def refactor(self, module: cst.Module, code_range: CodeRange) -> str | None:
         wrapper = cst.MetadataWrapper(module)
-        transformer = FunctionExtractor(
-            ExtractMethodConfig("new_func", start.line + 1, end.line + 1)
-        )
+        transformer = FunctionExtractor(ExtractMethodConfig("new_func", code_range))
         result = wrapper.visit(transformer)
         if transformer.state.added_new_function:
             return result.code

@@ -1,6 +1,7 @@
 import textwrap
 
 import libcst as cst
+from libcst.metadata import CodeRange
 from cst_lsp.code_actions.extract_method import (
     ExtractMethodConfig,
     FunctionExtractor,
@@ -27,7 +28,9 @@ def refactor_with_comments(source_code: str, new_func_name: str) -> str:
 
     tree = cst.parse_module(source_code)
     wrapper = cst.MetadataWrapper(tree)
-    config = ExtractMethodConfig(new_func_name, start_line, end_line)
+    config = ExtractMethodConfig(
+        new_func_name, CodeRange((start_line, 0), (end_line, 0))
+    )
     transformer = FunctionExtractor(config)
     modified_tree = wrapper.visit(transformer)
     return modified_tree.code

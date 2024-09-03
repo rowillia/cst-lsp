@@ -1,10 +1,16 @@
 import difflib
 
+from pathlib import Path
+import sys
 import libcst
+from libcst.metadata import CodePosition, CodeRange
 from lsprotocol import types as lsp
 from pygls.server import LanguageServer
 
+from cst_lsp.code_actions.base import BaseCstLspCodeAction
 from cst_lsp.code_actions.extract_method import ExtractMethod
+from cst_lsp.code_actions.import_symbol import ImportSymbol
+from cst_lsp.symbols.symbol_finder import SymbolFinder
 
 
 def string_diff_to_text_edits(original: str, modified: str) -> list[lsp.TextEdit]:
@@ -69,7 +75,16 @@ def string_diff_to_text_edits(original: str, modified: str) -> list[lsp.TextEdit
 class CstLspServer(LanguageServer):
     def __init__(self):
         super().__init__("cst-lsp-server", "v0.1")
-        self.transformations = [ExtractMethod]
+        self.transformations: list[BaseCstLspCodeAction] = []
+
+    async def initialize(self, params: lsp.InitializeParams):
+        self.transformations = [ExtractMethod()]
+        if params.root_uri:
+            root_path = Path(params.root_uri.replace("file://", ""))
+            # TODO: Make `python_path` configurable.
+            symbol_finder = SymbolFinder.create(Path(sys.executable), Path(root_path))
+            if symbol_finder:
+                self.transformations.append(ImportSymbol(symbol_finder))
 
     async def code_action_handler(
         self, params: lsp.CodeActionParams
@@ -78,14 +93,16 @@ class CstLspServer(LanguageServer):
         start, end = params.range.start, params.range.end
 
         code_actions = []
-        for transformation_class in self.transformations:
-            transformation = transformation_class()
-            if not transformation.is_valid(document.source, start, end):
+        module = libcst.parse_module(document.source)
+        code_range = CodeRange(
+            CodePosition(start.line + 1, start.character),
+            CodePosition(end.line + 1, end.character),
+        )
+        for transformation in self.transformations:
+            if not transformation.is_valid(document.source, module, code_range):
                 continue
-
             try:
-                module = libcst.parse_module(document.source)
-                result = transformation.refactor(module, start, end)
+                result = transformation.refactor(module, code_range)
                 if not result or result == document.source:
                     continue
                 edits = string_diff_to_text_edits(document.source, result)
@@ -109,6 +126,11 @@ server = CstLspServer()
 @server.feature(lsp.TEXT_DOCUMENT_CODE_ACTION)
 async def code_action(params: lsp.CodeActionParams) -> list[lsp.CodeAction] | None:
     return await server.code_action_handler(params)
+
+
+@server.feature(lsp.INITIALIZE)
+async def initialize(params: lsp.InitializeParams):
+    return await server.initialize(params)
 
 
 def main():
