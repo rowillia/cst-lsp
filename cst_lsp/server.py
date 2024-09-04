@@ -9,7 +9,7 @@ from pygls.server import LanguageServer
 
 from cst_lsp.code_actions.base import BaseCstLspCodeAction
 from cst_lsp.code_actions.extract_method import ExtractMethod
-from cst_lsp.code_actions.import_symbol import ImportSymbol
+from cst_lsp.code_actions.import_symbol import ImportAll, ImportSymbol
 from cst_lsp.symbols.symbol_finder import SymbolFinder
 
 
@@ -85,6 +85,7 @@ class CstLspServer(LanguageServer):
             symbol_finder = SymbolFinder.create(Path(sys.executable), Path(root_path))
             if symbol_finder:
                 self.transformations.append(ImportSymbol(symbol_finder))
+                self.transformations.append(ImportAll(symbol_finder))
 
     async def code_action_handler(
         self, params: lsp.CodeActionParams
