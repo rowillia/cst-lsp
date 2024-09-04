@@ -58,7 +58,17 @@ class RipGrepSymbolFinder(SymbolFinder):
     def _ripgrep_generator(
         self, pattern: str, root: Path, glob: str = "*.py", max_hits: int = 25
     ):
-        cmd = ["rg", "-m1", "-g", glob, "--no-ignore", "--multiline", pattern, str(root), "--json"]
+        cmd = [
+            "rg",
+            "-m1",
+            "-g",
+            glob,
+            "--no-ignore",
+            "--multiline",
+            pattern,
+            str(root),
+            "--json",
+        ]
         if (root / "site-packages").is_dir():
             # Avoid crawling `site-packages` from it's parent since it won't
             # be valid to import from the parent anyway.
