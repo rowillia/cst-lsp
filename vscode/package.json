@@ -1,0 +1,84 @@
+{
+  "name": "cst-lsp",
+  "displayName": "CST LSP",
+  "description": "Python code transformations using libcst, including method extraction and symbol importing",
+  "version": "0.0.1",
+  "publisher": "devin",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:python"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "python",
+        "aliases": [
+          "CST LSP",
+          "python"
+        ],
+        "extensions": [
+          ".py"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "python",
+        "scopeName": "source.python",
+        "path": "./syntaxes/python.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "cst-lsp.extractMethod",
+        "title": "Extract Method"
+      },
+      {
+        "command": "cst-lsp.importSymbol",
+        "title": "Import Symbol"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "CST LSP",
+      "properties": {
+        "cstLsp.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.1",
+    "@types/vscode": "^1.95.0",
+    "@vscode/test-electron": "^2.4.1",
+    "glob": "^11.0.0",
+    "mocha": "^11.0.1",
+    "typescript": "^5.7.2"
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js"
+  }
+}
