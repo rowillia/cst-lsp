@@ -58,6 +58,17 @@ async function activate(context) {
         documentSelector: [{ scheme: 'file', language: 'python' }],
         synchronize: {
             fileEvents: vscode.workspace.createFileSystemWatcher('**/*.py')
+        },
+        middleware: {
+            provideCodeActions: async (document, range, context, token, next) => {
+                // Only handle our specific code actions
+                const actions = await next(document, range, context, token);
+                if (!actions)
+                    return actions;
+                return actions.filter(action => action.title === 'Extract Method' ||
+                    action.title === 'Import Symbol' ||
+                    action.title === 'Import All Missing');
+            }
         }
     };
     // Create and start client

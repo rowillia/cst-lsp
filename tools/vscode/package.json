@@ -15,26 +15,6 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "languages": [
-      {
-        "id": "python",
-        "aliases": [
-          "CST LSP",
-          "python"
-        ],
-        "extensions": [
-          ".py"
-        ],
-        "configuration": "./language-configuration.json"
-      }
-    ],
-    "grammars": [
-      {
-        "language": "python",
-        "scopeName": "source.python",
-        "path": "./syntaxes/python.tmLanguage.json"
-      }
-    ],
     "commands": [
       {
         "command": "cst-lsp.extractMethod",
