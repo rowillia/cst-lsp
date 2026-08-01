@@ -5,7 +5,7 @@ import sys
 import libcst
 from libcst.metadata import CodePosition, CodeRange
 from lsprotocol import types as lsp
-from pygls.server import LanguageServer
+from pygls.lsp.server import LanguageServer
 
 from cst_lsp.code_actions.base import BaseCstLspCodeAction
 from cst_lsp.code_actions.extract_method import ExtractMethod
